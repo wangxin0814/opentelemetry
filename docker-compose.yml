@@ -1,0 +1,68 @@
+version: '3'
+
+services:
+  jaeger_agent:
+    image: jaegertracing/jaeger-agent:1.28
+    container_name: jaeger_agent
+    restart: always
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778/tcp"
+    environment:
+      - REPORTER_GRPC_HOST_PORT=jaeger_collector:14250  #  --reporter.grpc.host-port string
+      # - LOG_LEVEL=debug  --log-level string
+    networks:
+      - jaeger_net
+
+  jaeger_query:
+    image: jaegertracing/jaeger-query:1.28
+    container_name: jaeger_query
+    restart: always
+    ports:
+      - "16686:16686"
+      - "16687:16687"
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch # --span-storage.type string
+      - ES_SERVER_URLS=http://elasticsearch:9200  #   --es.server-urls string
+    networks:
+      - jaeger_net
+
+  jaeger_collector:
+    image: jaegertracing/jaeger-collector
+    container_name: jaeger_collector
+    restart: always
+    ports:
+      - "9411:9411"
+      - "14250:14250"
+      - "14267:14267"
+      - "14268:14268"
+      - "14269:14269"
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch  #  --span-storage.type string
+      - ES_SERVER_URLS=http://elasticsearch:9200
+    networks:
+      - jaeger_net
+
+  # docker pull jaegertracing/jaeger-ingester:latest
+
+  elasticsearch:
+    image: elasticsearch
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node  #以单一节点模式启动
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" #设置使用jvm内存大小
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data/elasticsearch/data:/usr/share/elasticsearch/data
+    restart: always
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - jaeger_net
+
+networks:
+  jaeger_net:
+    driver: bridge
